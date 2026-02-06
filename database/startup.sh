@@ -68,6 +68,8 @@ fi
 echo "Provisioning database/role for Django..."
 
 # Ensure role exists (create if missing) and always reset password to desired value.
+# Also ensure the app role has CREATEDB so Django can create test databases (e.g., test_<dbname>)
+# when running manage.py test.
 sudo -u postgres "${PG_BIN}/psql" -p "${DB_PORT}" -d postgres -v ON_ERROR_STOP=1 << EOF
 DO \$\$
 BEGIN
@@ -77,6 +79,10 @@ BEGIN
 
     -- Keep password in sync with this script so the container is "ready-to-use"
     ALTER ROLE ${DB_USER} WITH LOGIN PASSWORD '${DB_PASSWORD}';
+
+    -- Django test runner creates databases; grant CREATEDB idempotently.
+    -- This is safe to run repeatedly and does not require SUPERUSER.
+    ALTER ROLE ${DB_USER} CREATEDB;
 
     -- Optional but useful for Django migrations that may create schemas/extensions
     -- (Extensions are still created by postgres below; this is future-proofing.)
